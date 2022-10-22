@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+     <style>
+        img{
+            height: 200px;
+            width: 200px;
+        }
+     </style>
+</head>
+<body>
+    <label >Image Name </label><input type="text" id="namebox">
+    <label id="extlab"></label><br><br>
+    <img id="myimg"><label id="upprogres"></label>
+    <br><br>
+    <button id="selbtn">Select Image</button>
+    <button id="upbtn">Upload Image</button>
+    <button id="downbtn">Retrive Image</button>
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.12.1/firebase-app.js";
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
+      
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+          apiKey: "",
+          authDomain: "",
+          databaseURL: "",
+          projectId: "",
+          storageBucket: "",
+          messagingSenderId: "",
+          appId: ""
+        }
+      
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+      import { getStorage,ref as sRef,uploadBytesResumable,getDownloadURL} 
+      from " https://www.gstatic.com/firebasejs/9.12.1/firebase-storage.js";
+
+      import { getDatabase,ref,set ,child,get,update,remove} 
+      from " https://www.gstatic.com/firebasejs/9.12.1/firebase-database.js";
+
+      const realdb =getDatabase()
+    //   variables and referece
+    var files =[]
+    var reader = new FileReader()
+
+
+    var namebox = document.getElementById('namebox')
+    var extlab = document.getElementById('extlab')
+    var myimg = document.getElementById('myimg')
+    var proglab = document.getElementById('upprogres')
+    var Selbtn = document.getElementById('selbtn')
+    var UpBtn = document.getElementById('upbtn')
+    var DonwBtn = document.getElementById('downbtn')
+
+
+    var input = document.createElement('input')   
+    input.type ='file'
+    input.onchange =e=>{
+        files =e.target.files
+        var extention = GetFileExt(files[0]) 
+        var name = GetFileName(files[0])
+
+        namebox.value =name;
+        extlab.innerHTML = extention
+        reader.readAsDataURL(files[0])
+
+
+    }
+ reader.onload = function(){
+    myimg.src = reader.result
+ }
+
+//  selection
+Selbtn.onclick=function(){
+    input.click()
+}
+
+function GetFileExt(file){
+    var temp = file.name.split('.')
+    var ext = temp.slice((temp.length-1),(temp.length))
+    return '.'+ext[0]
+}
+
+function GetFileName(file){
+    var temp = file.name.split('.')
+    var fname = temp.slice(0,-1).join('.')
+    return fname
+}
+
+// upload process
+
+
+async function UploadProcess(){
+    var ImageToUpload = files[0];
+
+    var ImgName = namebox.value + extlab.innerHTML
+
+ if(!ValidName()){
+    alert("name can't contain '. '', '# ',' [' or ']'").json
+    return
+ }
+
+ const metaData ={
+    contentType:ImageToUpload.type
+
+ }
+ const storage = getStorage()
+ const storageRef = sRef(storage,"Images/"+ ImgName)
+ const UploadTask = uploadBytesResumable(storageRef,ImageToUpload,metaData)
+
+ UploadTask.on('state-changed',(snapshot)=>{
+    var progress = (snapshot.bytesTransferred /snapshot.totalBytes)*100
+
+    proglab.innerHTML ='Upload'+progress+"%"
+    
+ },(err)=>{
+    console.log(err)
+    alert("err:image not uploded")
+ },()=>{
+    getDownloadURL(UploadTask.snapshot.ref).then((downloadURL)=>{
+        saveURLtoRealtimeDB(downloadURL)
+    })
+ })
+   
+}
+// function for realtime database
+
+function saveURLtoRealtimeDB(URL){
+    var name = namebox.value
+    var ext = extlab.innerHTML
+
+    set(ref(realdb,"ImagesLinks/"+name),{
+        ImageName:(name+ext),
+        ImgUrl:URL
+    })
+}
+// get url from firebase
+function GetUrlfromRealtimeDB(){
+    var name = namebox.value
+    var dbRef = ref(realdb)
+    get(child(dbRef,"ImagesLinks/"+name)).then((snapshot)=>{
+        if(snapshot.exists()){
+            myimg.src =snapshot.val().ImgUrl
+        }
+    })
+
+   
+}
+// name validation can't contain . # $ [ or ]
+function ValidName(){
+    var regex = / [\.#$\[\]]/
+    return !(regex.test(namebox.value))
+}
+
+UpBtn.onclick = UploadProcess
+DonwBtn.onclick = GetUrlfromRealtimeDB
+
+      </script>
+</body>
+</html>
